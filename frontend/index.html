@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Meeting Monitor</title>
+   <link rel="stylesheet" href="./css/styles.css">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <!-- Header -->
+    <header class="border-b border-slate-200 bg-white">
+        <a href="./upload.html">Upload Recording</a>
+        <a href="./live_meeting.html">Start Live Meeting</a>
+        <a href="./dashboard.html">Dashboard</a>
+
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items<center justify-between">
+            <h1 class="text-2xl font-bold text-slate-900">AI Meeting Monitor</h1>
+            <a href="./dashboard.html" class="text-slate-600 hover:text-slate-900 font-medium transition">Dashboard</a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="max-w-6xl mx-auto px-6 py-16 text-center">
+        <h2 class="text-5xl font-bold text-slate-900 mb-4">AI Meeting Monitor</h2>
+        <p class="text-xl text-slate-600 mb-12">Choose a mode to analyze your meetings.</p>
+
+        <!-- Two Main Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Upload Recording Card -->
+            <a href="./upload.html" class="group">
+                <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition p-8 h-full flex flex-col">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-3">Upload Recording</h3>
+                    <p class="text-slate-600 mb-8 flex-grow">Post-meeting analysis from an audio file.</p>
+                    <!--  Replaced 4 badges with Start button -->
+                    <button class="w-full bg-slate-900 text-white font-semibold py-3 rounded-lg hover:bg-slate-800 transition">
+                        Start
+                    </button>
+                </div>
+            </a>
+
+            <!-- Start Live Meeting Card -->
+            <a href="./live_meeting.html" class="group">
+                <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition p-8 h-full flex flex-col">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-3">Start Live Meeting</h3>
+                    <p class="text-slate-600 mb-8 flex-grow">Run a live meeting with real-time insights.</p>
+                    <!--  Replaced 4 badges with Start button -->
+                    <button class="w-full bg-slate-900 text-white font-semibold py-3 rounded-lg hover:bg-slate-800 transition">
+                        Start
+                    </button>
+                </div>
+            </a>
+        </div>
+    </section>
+</body>
+</html>

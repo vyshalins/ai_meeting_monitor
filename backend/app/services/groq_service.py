@@ -1,0 +1,142 @@
+# app/services/groq_service.py (only the analyze_* parts changed)
+from groq import Groq
+from io import BytesIO
+import json, re
+from typing import Any, Dict, List, Tuple
+
+NAME_WORD = r"[A-Z][a-zA-Z]+"
+ASSIGN_PATTERNS = [
+    # "Rahul will finish the frontend by EOD."
+    re.compile(rf"\b({NAME_WORD})\s+will\s+([^\.]+)", re.I),
+    # "Assign Ram to handle backend with Flask."
+    re.compile(rf"\bassign\s+({NAME_WORD})\s+to\s+([^\.]+)", re.I),
+    # "Sakshin to do integration."
+    re.compile(rf"\b({NAME_WORD})\s+to\s+([^\.]+)", re.I),
+    # "({name}) is responsible for ..."
+    re.compile(rf"\b({NAME_WORD})\s+is\s+responsible\s+for\s+([^\.]+)", re.I),
+]
+
+def _strip_code_fences(text: str) -> str:
+    m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)
+    return m.group(1).strip() if m else text.strip()
+
+def _safe_json_loads(text: str) -> Dict[str, Any]:
+    try:
+        return json.loads(text)
+    except Exception:
+        text2 = re.sub(r'^\s*json\s*', '', text, flags=re.I).strip()
+        try:
+            return json.loads(text2)
+        except Exception:
+            return {}
+
+def _fallback_actions_with_assignees(transcript: str) -> List[Dict[str, str]]:
+    items: List[Dict[str, str]] = []
+    # scan sentence by sentence
+    sentences = re.split(r'(?<=[.!?])\s+', transcript)
+    for s in sentences:
+        s_clean = s.strip()
+        if not s_clean:
+            continue
+        for pat in ASSIGN_PATTERNS:
+            m = pat.search(s_clean)
+            if m:
+                assignee = m.group(1).strip().rstrip(",.")
+                task = m.group(2).strip().rstrip(".")
+                # tidy verbs like "to complete"/"complete"
+                task = re.sub(r"^(to\s+)", "", task, flags=re.I)
+                # cap length
+                task = re.sub(r"\s+", " ", task)[:140]
+                items.append({"assignee": assignee, "text": task})
+                break
+
+    # de-duplicate by assignee+text
+    dedup: List[Dict[str, str]] = []
+    seen: set[Tuple[str, str]] = set()
+    for it in items:
+        key = (it["assignee"].lower(), it["text"].lower())
+        if key not in seen:
+            seen.add(key)
+            dedup.append(it)
+    return dedup[:10]
+
+class GroqClient:
+    def __init__(self, api_key: str):
+        self.client = Groq(api_key=api_key)
+
+    def transcribe_bytes(self, audio_bytes: bytes, filename: str = "audio.wav") -> str:
+        bio = BytesIO(audio_bytes); bio.name = filename
+        tx = self.client.audio.transcriptions.create(
+            file=bio, model="whisper-large-v3", response_format="json", temperature=0.0
+        )
+        return getattr(tx, "text", "") or (tx.get("text") if isinstance(tx, dict) else "")
+
+    def analyze_transcript(self, transcript: str) -> Dict[str, Any]:
+        system = (
+            "You are an expert Meeting Analysis AI. "
+            "Return ONLY valid JSON (no markdown). Schema:\n"
+            "{"
+            '"summary":"string",'
+            '"actions":[{"assignee":"string","text":"string"}],'
+            '"moderation":{"interruptions":0,"notes":["string",...]}'
+            "}\n"
+            "Rules: summary = 1–3 short sentences. "
+            "actions = concrete, imperative, ≤120 chars each. "
+            "If the assignee is obvious from the transcript, include their first name; otherwise use an empty string."
+            "moderation.notes MUST include brief bullets for any toxic or harassing language (e.g., 'toxic: \"idiot\"'), hate, threats, sexual content, or PII (phone/email). If none, return an empty array."
+
+        )
+        user = f'Transcript:\n"""\n{transcript}\n"""\nReturn JSON only.'
+
+        resp = self.client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": system},
+                      {"role": "user", "content": user}],
+            temperature=0.1,
+            max_tokens=700,
+        )
+        content = _strip_code_fences(resp.choices[0].message.content or "")
+        data = _safe_json_loads(content)
+
+        summary = (data.get("summary") or "").strip()
+        actions = data.get("actions") or []
+        moderation = data.get("moderation") or {}
+        interruptions = int(moderation.get("interruptions") or 0)
+        notes = moderation.get("notes") or []
+
+        # Normalize actions to list of {assignee, text}
+        norm_actions: List[Dict[str, str]] = []
+        if isinstance(actions, list):
+            for a in actions:
+                if isinstance(a, dict):
+                    norm_actions.append({
+                        "assignee": (a.get("assignee") or "").strip(),
+                        "text": (a.get("text") or "").strip(),
+                    })
+                elif isinstance(a, str):
+                    # try to pull "Name: task" pattern
+                    m = re.match(rf"^\s*({NAME_WORD})\s*[:\-]\s*(.+)$", a)
+                    if m:
+                        norm_actions.append({"assignee": m.group(1).strip(), "text": m.group(2).strip()})
+                    else:
+                        norm_actions.append({"assignee": "", "text": a.strip()})
+        else:
+            norm_actions = []
+
+        # Fallback if model missed names/tasks
+        if not norm_actions:
+            norm_actions = _fallback_actions_with_assignees(transcript)
+
+        # final trims
+        for it in norm_actions:
+            it["text"] = re.sub(r"\s+", " ", it["text"]).strip()[:120]
+            it["assignee"] = it["assignee"].strip()
+
+        if not summary:
+            summary = "Key tasks were assigned with a target of EOD completion."
+
+        return {
+            "summary": summary,
+            "actions": norm_actions,
+            "moderation": {"interruptions": interruptions, "notes": notes if isinstance(notes, list) else [str(notes)]},
+        }

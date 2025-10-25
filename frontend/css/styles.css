@@ -1,0 +1,44 @@
+/* Global polish (plays nicely with Tailwind) */
+:root {
+  --ring: 0 0 0 3px rgba(99, 102, 241, 0.35); /* indigo-500 ring */
+}
+
+html { scroll-behavior: smooth; }
+* { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible {
+  outline: none !important;
+  box-shadow: var(--ring);
+  border-radius: 0.75rem; /* matches rounded-xl */
+}
+
+/* Softer shadows for cards/buttons */
+.shadow-soft { box-shadow: 0 8px 28px rgba(0,0,0,0.06); }
+
+/* Subtle borders (use with Tailwind border classes if desired) */
+.border-subtle { border-color: rgb(229 231 235 / 0.9); }
+
+/* Nicer scrollbars on desktop */
+@media (hover: hover) and (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c7c9d1 transparent;
+  }
+  *::-webkit-scrollbar { height: 10px; width: 10px; }
+  *::-webkit-scrollbar-thumb { background: #c7c9d1; border-radius: 9999px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* Optional: make <details> summary look clickable without default marker */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after {
+  content: "▾";
+  margin-left: .5rem;
+  font-size: .9em;
+  color: #6b7280; /* gray-500 */
+}
+details[open] > summary::after { transform: rotate(180deg); display: inline-block; }

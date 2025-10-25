@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Meeting — AI Meeting Monitor</title>
+
+  <!-- Tailwind (dev) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Your overrides -->
+  <link rel="stylesheet" href="./css/styles.css"/>
+</head>
+<body class="min-h-screen bg-slate-50">
+  <!-- Header -->
+  <header class="border-b border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="./index.html" class="text-slate-700 hover:text-slate-900 font-semibold">AI Meeting Monitor</a>
+      <nav class="hidden md:flex gap-3">
+        <a href="./upload.html" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-medium">Upload</a>
+        <a href="./dashboard.html" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-medium">Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-6 space-y-6">
+    <!-- Controls -->
+    <section class="rounded-2xl bg-white border border-slate-200 shadow-sm p-5">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-4">
+        <label class="flex-1">
+          <span class="block text-sm text-slate-600">Room</span>
+          <input id="roomInput" type="text" class="mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="ai-mm-123456"/>
+        </label>
+        <div class="flex gap-2">
+          <button id="btnCopyInvite" class="rounded-xl bg-slate-100 text-slate-800 px-4 py-2 hover:bg-slate-200 text-sm font-medium">Copy Invite Link</button>
+          <button id="btnStart" class="rounded-xl bg-indigo-600 text-white px-4 py-2 font-medium">Start Meeting</button>
+          <button id="btnEnd"   class="rounded-xl bg-slate-900 text-white px-4 py-2 font-medium disabled:opacity-40" disabled>End Meeting</button>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-slate-500">Jitsi opens in a new tab. Keep this page open for live insights.</p>
+      <p id="inviteLink" class="mt-3 text-sm text-slate-600 break-all"></p>
+    </section>
+
+    <!-- Live Insights (full-width) -->
+    <section class="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4">
+      <h2 class="font-semibold text-lg">Live Insights</h2>
+
+      <article class="rounded-xl border p-4 space-y-2">
+        <header class="flex items-center justify-between">
+          <h3 class="font-semibold">Transcription</h3>
+          <span id="transcriptStatus" class="text-xs text-slate-500">idle</span>
+        </header>
+        <div id="liveTranscript" class="h-48 overflow-auto text-sm whitespace-pre-wrap text-slate-800 bg-slate-50 rounded p-3"></div>
+      </article>
+
+      <article class="rounded-xl border p-4 space-y-2">
+        <h3 class="font-semibold">Summary</h3>
+        <p id="liveSummary" class="text-sm text-slate-700">Key points will appear here during/after the meeting.</p>
+      </article>
+
+      <article class="rounded-xl border p-4 space-y-2">
+        <h3 class="font-semibold">Action Rendering</h3>
+        <ul id="liveActions" class="list-disc pl-5 text-sm text-slate-700 space-y-1"></ul>
+      </article>
+
+      <article class="rounded-xl border p-4 space-y-2">
+        <h3 class="font-semibold">Moderation</h3>
+        <div id="liveModeration" class="rounded-lg border bg-amber-50 p-3 text-sm text-amber-800">Alerts will appear here.</div>
+      </article>
+    </section>
+  </main>
+
+  <!-- Final Report Modal -->
+  <div id="reportOverlay" class="fixed inset-0 bg-black/40 hidden"></div>
+  <div id="reportModal" class="fixed inset-0 grid place-items-center hidden">
+    <div class="bg-white rounded-2xl shadow-xl border w-[min(900px,92vw)] max-h-[85vh] overflow-hidden">
+      <div class="px-6 py-4 border-b flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Final Report</h3>
+        <button id="btnCloseReport" class="text-slate-600 hover:text-slate-900 text-xl leading-none">&times;</button>
+      </div>
+      <div class="p-6 space-y-6 overflow-y-auto">
+        <section>
+          <h4 class="font-semibold mb-2">Summary</h4>
+          <p id="finalSummary" class="text-sm text-slate-700 whitespace-pre-wrap"></p>
+        </section>
+
+        <section>
+          <h4 class="font-semibold mb-2">Actions</h4>
+          <ul id="finalActions" class="list-disc pl-5 text-sm text-slate-700 space-y-1"></ul>
+        </section>
+
+        <section>
+          <h4 class="font-semibold mb-2">Moderation</h4>
+          <ul id="finalModeration" class="list-disc pl-5 text-sm text-amber-800 space-y-1"></ul>
+        </section>
+
+        <section>
+          <h4 class="font-semibold mb-2">Transcript</h4>
+          <pre id="finalTranscript" class="bg-slate-50 border rounded p-3 text-xs text-slate-700 whitespace-pre-wrap"></pre>
+        </section>
+      </div>
+      <div class="px-6 py-4 border-t flex flex-wrap gap-3 justify-between">
+        <div class="flex gap-3">
+          <button id="btnCopySummary" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-medium">Copy Summary</button>
+          <button id="btnCopyActions" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-medium">Copy Actions</button>
+        </div>
+        <div class="flex gap-3">
+          <button id="btnDownloadJSON" class="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm font-medium">Download JSON</button>
+          <button id="btnClose" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-medium">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================== Config ==================
+    const API_BASE = "http://127.0.0.1:8000/api/v1"; // backend base
+    const SPEAKER_HINTS = ["Sakshi","Vyshali","Rahul","Ram","Ravi","John","Sarah"];
+
+    // ---------- Room & Invite link ----------
+    function getParam(name) { const url = new URL(window.location.href); return url.searchParams.get(name); }
+    function generateRoomSlug() { const ts = Date.now().toString().slice(-6); return `ai-mm-${ts}`; }
+    function updateInviteLink(room) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', room);
+      const link = url.toString();
+      document.getElementById('inviteLink').textContent = link;
+      return link;
+    }
+
+    const initialRoom = getParam('room') || generateRoomSlug();
+    const roomInput = document.getElementById('roomInput');
+    roomInput.value = initialRoom;
+    let inviteURL = updateInviteLink(initialRoom);
+
+    document.getElementById('btnCopyInvite').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(inviteURL);
+        const btn = document.getElementById('btnCopyInvite');
+        const prev = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => (btn.textContent = prev), 1200);
+      } catch (_) {}
+    });
+    roomInput.addEventListener('input', () => { inviteURL = updateInviteLink(roomInput.value.trim() || generateRoomSlug()); });
+
+    // ---------- Open Jitsi in a new tab ----------
+    function startMeeting() {
+      const roomName = (roomInput.value || generateRoomSlug()).trim();
+      inviteURL = updateInviteLink(roomName);
+      window.open(`https://meet.jit.si/${roomName}`, "_blank");
+      setStatus("live");
+    }
+    function endMeeting() { setStatus("idle"); }
+    function setStatus(state) { document.getElementById('transcriptStatus').textContent = state; }
+
+    // ================= Live STT (Web Speech API) =================
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recog = null, recogActive = false;
+
+    // Buffers
+    let chunkBuffer = "";           // optional recent text
+    let fullTranscript = "";        // ENTIRE transcript so far
+    let chunkTimer = null;          // setInterval handle
+
+    // Global de-dup set for moderation lines (client + server)
+    const modSeen = new Set();
+
+    // --- Live moderation (client-side hotwords) ---
+    const TOXICITY = {
+      insults: ["idiot","idiots","stupid","moron","morons","dumb","dumbass","lame","useless","worthless","pathetic","jerk","loser","clown","trash"],
+      abusive: ["asshole","bastard","son of a bitch","dick","dickhead","prick","retard","retarded","scumbag","nutcase","freak","psycho"],
+      aggression: ["shut up","get lost","i hate you","you are nothing","no one cares","who asked you","go to hell"],
+      belittling: ["you don't know anything","you are slow","you always mess up","you never learn","do you have a brain"]
+    };
+    const HOTWORDS = Object.values(TOXICITY).flat().map(w => w.toLowerCase().normalize("NFKD"));
+    let lastHotwordAt = 0;
+
+    function normalizeForScan(s) {
+      return (s || "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+    }
+    function containsHotword(text) {
+      if (!text) return null;
+      const normalized = normalizeForScan(text);
+      for (const phrase of HOTWORDS) {
+        const pattern = phrase.replace(/\s+/g, "\\s+");
+        const re = new RegExp(`(^|\\s)${pattern}($|\\s)`, "i");
+        if (re.test(normalized)) return phrase;
+      }
+      return null;
+    }
+    function ensureModBoxScaffold() {
+      const modBox = document.getElementById('liveModeration');
+      if (!modBox.querySelector('#modList')) { modBox.innerHTML = `<div id="modList" class="space-y-1"></div>`; }
+    }
+    function addModerationLine(label) {
+      const key = label.trim().toLowerCase();
+      if (modSeen.has(key)) return;
+      ensureModBoxScaffold();
+      const list = document.getElementById('modList');
+      const div = document.createElement('div');
+      div.textContent = label;
+      list.appendChild(div);
+      modSeen.add(key);
+    }
+    function instantFlag(text) {
+      const hit = containsHotword(text);
+      if (!hit) return false;
+      const now = Date.now();
+      if (now - lastHotwordAt > 5000) { // 5s cooldown
+        addModerationLine(`• toxic: "${hit}"`);
+        lastHotwordAt = now;
+      }
+      return true;
+    }
+
+    // --- Live Action Extraction (client-side heuristics) ---
+    const ACTION_VERBS = ["will","to","must","should","prepare","create","finalize","deliver","complete","fix","review","send","share","update","schedule","integrate","test","deploy","document","summarize","present"];
+    function extractActionsFromText(text) {
+      const results = [];
+      if (!text) return results;
+      const t = text.replace(/\s+/g, " ").trim();
+      const mA = t.match(/^([A-Za-z][A-Za-z\-']+)\s*:\s*(?:Action:|Todo:)?\s*(.+)$/i);
+      if (mA) results.push({ assignee: mA[1], text: mA[2] });
+      const nameAlt = `(?:${SPEAKER_HINTS.map(n => n.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")})`;
+      const mB = t.match(new RegExp(`\\b(${nameAlt})\\b\\s+(?:${ACTION_VERBS.join("|")})\\b\\s+(.+)$`, "i"));
+      if (mB) results.push({ assignee: mB[1], text: mB[2] });
+      const mC = t.match(/\b(?:Action|Todo)\s*:\s*(.+)$/i);
+      if (mC) results.push({ assignee: "", text: mC[1] });
+      return results.map(a => ({ assignee: (a.assignee || "").trim(), text: (a.text || "").trim() })).filter(a => a.text && a.text.length > 2);
+    }
+    function addActionsToUI(items) {
+      const ul = document.getElementById('liveActions');
+      const existing = new Set(Array.from(ul.querySelectorAll('li')).map(li => li.textContent.trim().toLowerCase()));
+      items.forEach(({assignee, text}) => {
+        const label = assignee ? `${assignee}: ${text}` : text;
+        const key = label.trim().toLowerCase();
+        if (label && !existing.has(key)) {
+          const li = document.createElement('li');
+          li.textContent = label;
+          ul.appendChild(li);
+          existing.add(key);
+        }
+      });
+    }
+
+    function initRecognition() {
+      if (!SpeechRecognition) {
+        console.warn("Web Speech API not supported.");
+        document.getElementById('liveTranscript').textContent = "Live captions not supported in this browser. Use Chrome desktop.";
+        return;
+      }
+      recog = new SpeechRecognition();
+      recog.lang = "en-US";          // set to "en-IN" if you prefer
+      recog.continuous = true;       // Chrome still stops periodically; we auto-restart
+      recog.interimResults = true;
+
+      recog.onresult = (e) => {
+        let interimLine = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) {
+            const finalText = r[0].transcript.trim();
+            appendTranscript(finalText);
+            chunkBuffer += (chunkBuffer ? " " : "") + finalText;
+            fullTranscript += (fullTranscript ? " " : "") + finalText;
+
+            if (instantFlag(finalText)) pushChunkForInsights(true);
+            const acts = extractActionsFromText(finalText);
+            if (acts.length) addActionsToUI(acts);
+
+          } else {
+            interimLine = r[0].transcript;
+            instantFlag(interimLine);
+          }
+        }
+        setStatus(interimLine ? "listening…" : "live");
+      };
+
+      recog.onend = () => { if (recogActive) { try { recog.start(); } catch {} } };
+      recog.onerror = (err) => {
+        console.warn("STT error:", err.error);
+        if (recogActive) setTimeout(() => { try { recog.start(); } catch {} }, 800);
+      };
+    }
+
+    function startRecognition() {
+      if (!recog) initRecognition();
+      if (!recog) return;
+      recogActive = true;
+      try { recog.start(); } catch {}
+      setStatus("live");
+
+      if (!chunkTimer) chunkTimer = setInterval(pushChunkForInsights, 10000); // 10s
+    }
+
+    function stopRecognition() {
+      recogActive = false;
+      if (recog) { try { recog.stop(); } catch {} }
+      setStatus("idle");
+
+      if (chunkTimer) { clearInterval(chunkTimer); chunkTimer = null; }
+      pushChunkForInsights(true); // final push
+      generateFinalReport();      // show report modal
+    }
+
+    function appendTranscript(line) {
+      if (!line) return;
+      const box = document.getElementById('liveTranscript');
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 5;
+      box.textContent += (box.textContent ? "\n" : "") + line;
+      if (atBottom) box.scrollTop = box.scrollHeight;
+    }
+
+    // =============== Live insights: Summary / Actions / Moderation (server) ===============
+    async function pushChunkForInsights(force = false) {
+      const minCharsForSummary = 80;
+      if (!force && fullTranscript.trim().length < minCharsForSummary) return;
+
+      const payload = { transcript: fullTranscript || "(silence)" };
+
+      try {
+        const res = await fetch(`${API_BASE}/meetings/process`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("process failed");
+        const data = await res.json();
+
+        document.getElementById('liveSummary').textContent =
+          (data.summary || "—").toString().replace(/```(?:json)?|```/g, "").trim();
+
+        const serverActs = [];
+        const actions = Array.isArray(data.actions) ? data.actions : [];
+        actions.forEach(item => {
+          if (typeof item === "string") {
+            const m = item.match(/^([A-Za-z][A-Za-z\-']+)\s*:\s*(.+)$/);
+            if (m) serverActs.push({ assignee: m[1], text: m[2] });
+            else serverActs.push({ assignee: "", text: item });
+          } else {
+            serverActs.push({ assignee: item.assignee || "", text: item.text || "" });
+          }
+        });
+        if (serverActs.length) addActionsToUI(serverActs);
+
+        (data.moderation?.notes || []).forEach(n => addModerationLine(`• ${n}`));
+
+      } catch (e) {
+        console.warn("[Live insights]", e);
+      }
+    }
+
+    // ================= Final Report (no upload) =================
+    async function generateFinalReport() {
+      let finalSummary = document.getElementById('liveSummary').textContent.trim();
+      try {
+        const res = await fetch(`${API_BASE}/meetings/process`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript: fullTranscript || "(silence)" })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          finalSummary = (data.summary || finalSummary || "—").toString().replace(/```(?:json)?|```/g, "").trim();
+
+          const serverActs = [];
+          const actions = Array.isArray(data.actions) ? data.actions : [];
+          actions.forEach(item => {
+            if (typeof item === "string") {
+              const m = item.match(/^([A-Za-z][A-Za-z\-']+)\s*:\s*(.+)$/);
+              if (m) serverActs.push({ assignee: m[1], text: m[2] });
+              else serverActs.push({ assignee: "", text: item });
+            } else {
+              serverActs.push({ assignee: item.assignee || "", text: item.text || "" });
+            }
+          });
+          if (serverActs.length) addActionsToUI(serverActs);
+          (data.moderation?.notes || []).forEach(n => addModerationLine(`• ${n}`));
+        }
+      } catch (e) { console.warn("[finalize]", e); }
+
+      const uiActions = Array.from(document.querySelectorAll('#liveActions li')).map(li => {
+        const t = li.textContent.trim();
+        const m = t.match(/^([A-Za-z][A-Za-z\-']+)\s*:\s*(.+)$/);
+        if (m) return { assignee: m[1], text: m[2] };
+        return { assignee: "", text: t };
+      });
+      const uiModeration = Array.from(document.querySelectorAll('#modList > div')).map(div => div.textContent.trim());
+
+      const report = {
+        room: roomInput.value.trim(),
+        created_at: new Date().toISOString(),
+        summary: finalSummary || "—",
+        actions: uiActions,
+        moderation: uiModeration,
+        transcript: fullTranscript || ""
+      };
+
+      document.getElementById('finalSummary').textContent = report.summary;
+      const actUL = document.getElementById('finalActions'); actUL.innerHTML = "";
+      report.actions.forEach(a => {
+        const li = document.createElement('li');
+        li.textContent = a.assignee ? `${a.assignee}: ${a.text}` : a.text;
+        actUL.appendChild(li);
+      });
+      const modUL = document.getElementById('finalModeration'); modUL.innerHTML = "";
+      report.moderation.forEach(n => {
+        const li = document.createElement('li'); li.textContent = n; modUL.appendChild(li);
+      });
+      document.getElementById('finalTranscript').textContent = report.transcript;
+
+      document.getElementById('btnDownloadJSON').onclick = () => {
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const fileSafe = (report.room || "meeting").replace(/[^\w\-]+/g, "_");
+        a.download = `${fileSafe}_report.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      document.getElementById('btnCopySummary').onclick = async () => { try { await navigator.clipboard.writeText(report.summary); } catch {} };
+      document.getElementById('btnCopyActions').onclick = async () => {
+        const text = report.actions.map(a => (a.assignee ? `${a.assignee}: ${a.text}` : a.text)).join("\n");
+        try { await navigator.clipboard.writeText(text); } catch {}
+      };
+
+      openReportModal();
+    }
+
+    // ===== Modal controls =====
+    const overlay = document.getElementById('reportOverlay');
+    const modal = document.getElementById('reportModal');
+    function openReportModal() { overlay.classList.remove('hidden'); modal.classList.remove('hidden'); }
+    function closeReportModal() { overlay.classList.add('hidden'); modal.classList.add('hidden'); }
+    document.getElementById('btnCloseReport').addEventListener('click', closeReportModal);
+    document.getElementById('btnClose').addEventListener('click', closeReportModal);
+    overlay.addEventListener('click', closeReportModal);
+
+    // ---------- Buttons ----------
+    const btnStart = document.getElementById('btnStart');
+    const btnEnd   = document.getElementById('btnEnd');
+
+    btnStart.addEventListener('click', () => {
+      startMeeting();
+      startRecognition();
+      btnStart.disabled = true;
+      btnEnd.disabled = false;
+    });
+
+    btnEnd.addEventListener('click', () => {
+      stopRecognition(); // final push & modal happens inside
+      endMeeting();
+      btnStart.disabled = false;
+      btnEnd.disabled = true;
+    });
+  </script>
+</body>
+</html>

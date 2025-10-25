@@ -1,0 +1,46 @@
+# ===================== GENERAL =====================
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.bak
+*.orig
+
+# ===================== PYTHON BACKEND =====================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+backend/.env
+backend/.env.*
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# ===================== FRONTEND =====================
+node_modules/
+dist/
+build/
+.cache/
+*.map
+
+# If later using tailwind CLI build:
+frontend/dist/
+frontend/.vite/
+frontend/.parcel-cache/
+
+# ===================== IDE / EDITOR =====================
+.vscode/
+.idea/
+*.code-workspace
+
+# ===================== MISC =====================
+# Generated final meeting export reports
+*_report.json
