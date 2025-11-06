@@ -196,6 +196,81 @@ def moderate_text(text: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"Moderation failed: {e}")
         return {"error": str(e)}
+    
+def detect_actions(text: str) -> Dict[str, Any]:
+    """
+    Detects action items and decisions from meeting transcripts.
+    Returns structured JSON with two arrays: 'actions' and 'decisions'.
+    """
+    import json, re
+
+    if not text.strip():
+        return {"error": "Empty text for action detection."}
+
+    example_json = {
+        "actions": [
+            {
+                "title": "Prepare project plan",
+                "owner": "John",
+                "due_date": "Friday",
+                "priority": "High",
+                "notes": "Include timeline and budget"
+            }
+        ],
+        "decisions": [
+            {
+                "title": "Budget approval",
+                "details": "Approved $10,000 for marketing."
+            }
+        ]
+    }
+
+    prompt = (
+        "You are an AI meeting assistant. "
+        "Extract actionable items and decisions from the following meeting transcript.\n\n"
+        "Return ONLY valid JSON strictly following this format:\n"
+        f"{json.dumps(example_json, indent=2)}\n\n"
+        "Transcript:\n"
+        f"{text}\n\n"
+        "Return JSON ONLY — no explanations, markdown, or extra text."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a strict JSON-only meeting action extractor."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0,
+            max_tokens=800
+        )
+
+        raw = response.choices[0].message.content.strip()
+
+        # Try parsing JSON directly
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to extract JSON substring if model wrapped it in text
+            match = re.search(r"\{[\s\S]*\}", raw)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except Exception:
+                    pass
+
+            # Fallback
+            return {
+                "actions": [],
+                "decisions": [],
+                "notes": "Invalid JSON returned — raw output: " + raw[:200]
+            }
+
+    except Exception as e:
+        print(f"Action detection failed: {e}")
+        return {"error": str(e)}
+
 
 def _strip_code_fences(text: str) -> str:
     m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)

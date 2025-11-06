@@ -146,3 +146,11 @@ async def moderate_endpoint(payload: dict):
     text = payload.get("text", "")
     result = moderate_text(text)
     return {"status": "success", "data": result}
+
+from app.services.groq_service import detect_actions
+
+@router.post("/actions")
+async def detect_actions_endpoint(payload: dict):
+    text = payload.get("text", "")
+    result = detect_actions(text)
+    return {"status": "success", "data": result}
