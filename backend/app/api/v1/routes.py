@@ -2,7 +2,8 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from uuid import uuid4
 from app.config import get_settings
-from app.services.groq_service import GroqClient
+from app.services.groq_service import GroqClient, transcribe_audio
+import tempfile, shutil
 
 router = APIRouter()
 
@@ -57,3 +58,18 @@ def process_stub(payload: dict):
     groq = GroqClient(api_key=settings.GROQ_API_KEY)
     analysis = groq.analyze_transcript(transcript)
     return analysis
+
+@router.post("/transcribe")
+async def transcribe_audio_endpoint(file: UploadFile = File(...)):
+    # Save file temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+        shutil.copyfileobj(file.file, temp_audio)
+        temp_path = temp_audio.name
+
+    # Process audio
+    result = transcribe_audio(temp_path)
+
+    return {
+        "status": "success",
+        "data": result
+    }

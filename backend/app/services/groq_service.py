@@ -3,6 +3,13 @@ from groq import Groq
 from io import BytesIO
 import json, re
 from typing import Any, Dict, List, Tuple
+import os
+from dotenv import load_dotenv
+import tempfile
+
+load_dotenv()
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 NAME_WORD = r"[A-Z][a-zA-Z]+"
 ASSIGN_PATTERNS = [
@@ -15,6 +22,34 @@ ASSIGN_PATTERNS = [
     # "({name}) is responsible for ..."
     re.compile(rf"\b({NAME_WORD})\s+is\s+responsible\s+for\s+([^\.]+)", re.I),
 ]
+
+def transcribe_audio(file_path: str) -> Dict[str, Any]:
+    """
+    Automatically detects language and transcribes the given audio file
+    into the same native script using Groq's Whisper model.
+    Returns language info and native transcription.
+    """
+    try:
+        with open(file_path, "rb") as audio_file:
+            # Call Groq Whisper model (no translate arg)
+            transcription = client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=audio_file
+            )
+
+        # Access transcription attributes directly
+        language_code = getattr(transcription, "language", "unknown")
+        transcript_text = getattr(transcription, "text", "").strip()
+
+        return {
+            "language_code": language_code,
+            "language_name": language_code.capitalize(),
+            "transcript_native": transcript_text
+        }
+
+    except Exception as e:
+        print(f"Transcription failed: {e}")
+        return {"error": str(e)}
 
 def _strip_code_fences(text: str) -> str:
     m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)
