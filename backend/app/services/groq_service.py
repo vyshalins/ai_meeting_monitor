@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 import os
 from dotenv import load_dotenv
 import tempfile
+from langdetect import detect, DetectorFactory
 
 load_dotenv()
 
@@ -23,23 +24,33 @@ ASSIGN_PATTERNS = [
     re.compile(rf"\b({NAME_WORD})\s+is\s+responsible\s+for\s+([^\.]+)", re.I),
 ]
 
+DetectorFactory.seed = 0
+
 def transcribe_audio(file_path: str) -> Dict[str, Any]:
     """
-    Automatically detects language and transcribes the given audio file
-    into the same native script using Groq's Whisper model.
-    Returns language info and native transcription.
+    Automatically detects the spoken language and transcribes
+    the given audio file into its native script.
+    Uses Groq Whisper + langdetect fallback for language detection.
     """
     try:
         with open(file_path, "rb") as audio_file:
-            # Call Groq Whisper model (no translate arg)
             transcription = client.audio.transcriptions.create(
                 model="whisper-large-v3",
                 file=audio_file
             )
 
-        # Access transcription attributes directly
-        language_code = getattr(transcription, "language", "unknown")
+        # Extract transcription text
         transcript_text = getattr(transcription, "text", "").strip()
+
+        # Try to get language from Groq (if available)
+        language_code = getattr(transcription, "language", None)
+
+        # Fallback: detect language manually if not provided
+        if not language_code or language_code == "unknown":
+            try:
+                language_code = detect(transcript_text)
+            except Exception:
+                language_code = "unknown"
 
         return {
             "language_code": language_code,
