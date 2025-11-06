@@ -139,3 +139,10 @@ async def summarize_endpoint(payload: dict):
             "summary_native": summary_native.get("summary_native", "")
         }
     }
+from app.services.groq_service import moderate_text
+
+@router.post("/moderate")
+async def moderate_endpoint(payload: dict):
+    text = payload.get("text", "")
+    result = moderate_text(text)
+    return {"status": "success", "data": result}

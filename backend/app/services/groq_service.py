@@ -145,7 +145,57 @@ def summarize_text_native(summary_en: str, target_lang: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"Native summary translation failed: {e}")
         return {"error": str(e)}
+    
+def moderate_text(text: str) -> Dict[str, Any]:
+    """
+    Detects offensive, hateful, sexual, violent, or self-harm related content.
+    Returns a structured moderation result.
+    """
+    try:
+        if not text.strip():
+            return {"error": "Empty text for moderation."}
 
+        prompt = (
+            "You are a strict content moderation system. "
+            "Analyze the following text and respond ONLY in valid JSON format with these keys:\n"
+            "{"
+            "\"is_flagged\": bool, "
+            "\"categories\": {"
+            "\"hate\": bool, "
+            "\"violence\": bool, "
+            "\"sexual\": bool, "
+            "\"self_harm\": bool"
+            "}, "
+            "\"notes\": string"
+            "}\n\n"
+            f"Text:\n{text}\n\n"
+            "Return JSON only, no extra words."
+        )
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a JSON-only moderation classifier."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0,
+            max_tokens=300
+        )
+
+        raw = response.choices[0].message.content.strip()
+
+        # Attempt to parse JSON safely
+        import json
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            parsed = {"is_flagged": False, "categories": {}, "notes": "Invalid JSON response"}
+
+        return parsed
+
+    except Exception as e:
+        print(f"Moderation failed: {e}")
+        return {"error": str(e)}
 
 def _strip_code_fences(text: str) -> str:
     m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)
