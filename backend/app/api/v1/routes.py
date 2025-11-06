@@ -154,3 +154,47 @@ async def detect_actions_endpoint(payload: dict):
     text = payload.get("text", "")
     result = detect_actions(text)
     return {"status": "success", "data": result}
+
+@router.post("/analyze")
+async def analyze_audio(file: UploadFile = File(...)):
+    import tempfile, shutil
+
+    # 1️⃣ Save the uploaded file temporarily
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+        shutil.copyfileobj(file.file, temp_audio)
+        temp_path = temp_audio.name
+
+    # 2️⃣ Transcribe audio (auto language detection)
+    transcription = transcribe_audio(temp_path)
+    transcript_native = transcription.get("transcript_native", "")
+    language_name = transcription.get("language_name", "Unknown")
+
+    # 3️⃣ Translate to English (translate_text returns a string)
+    transcript_en = translate_text(transcript_native, language_name)
+
+    # 4️⃣ Summarize (returns dicts)
+    summary_en_data = summarize_text_en(transcript_en)
+    summary_en = summary_en_data.get("summary_en", "")
+
+    summary_native_data = summarize_text_native(summary_en, language_name)
+    summary_native = summary_native_data.get("summary_native", "")
+
+    # 5️⃣ Moderation
+    moderation = moderate_text(transcript_en)
+
+    # 6️⃣ Action detection
+    actions = detect_actions(transcript_en)
+
+    return {
+        "status": "success",
+        "data": {
+            "language_code": transcription.get("language_code", ""),
+            "language_name": language_name,
+            "transcript_native": transcript_native,
+            "transcript_en": transcript_en,
+            "summary_native": summary_native,
+            "summary_en": summary_en,
+            "moderation": moderation,
+            "actions": actions,
+        },
+    }

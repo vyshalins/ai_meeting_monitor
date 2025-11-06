@@ -1,301 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Recording - AI Meeting Monitor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Meeting Monitor – Upload Mode</title>
 
-  <!-- Load Tailwind first -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Then your custom CSS (so it can override) -->
-  <link rel="stylesheet" href="./css/styles.css">
+  <!-- Beautiful fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans&family=Noto+Sans+Kannada&family=Noto+Sans+Devanagari&display=swap" rel="stylesheet" />
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f5f7fa;
+      color: #222;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    .card {
+      max-width: 800px;
+      margin: 2rem auto;
+      background: #fff;
+      padding: 1.5rem 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    input[type="file"] {
+      display: block;
+      margin: 1rem 0;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.7rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    pre {
+      background: #f0f4f8;
+      padding: 1rem;
+      border-radius: 10px;
+      overflow-x: auto;
+    }
+    .native {
+      font-family: 'Noto Sans Kannada', 'Noto Sans Devanagari', 'Noto Sans', sans-serif;
+    }
+    .section {
+      margin-top: 1.5rem;
+    }
+    .tag {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-right: 5px;
+      color: white;
+    }
+    .safe { background: #16a34a; }
+    .flagged { background: #dc2626; }
+  </style>
 </head>
-<body class="bg-slate-50">
-    <a href="./index.html">&larr; Back</a>
+<body>
+  <h1>🎙️ AI Meeting Monitor – Upload Mode</h1>
 
-  <!-- Top Bar -->
-  <div class="border-b border-slate-200 bg-white">
-    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
-      <a href="./index.html" class="text-slate-600 hover:text-slate-900 font-medium">← Back</a>
-      <h1 class="text-2xl font-bold text-slate-900">Upload Recording</h1>
-    </div>
-  </div>
+  <div class="card">
+    <h3>Upload Meeting Audio</h3>
+    <input type="file" id="audioFile" accept="audio/*" />
+    <button id="analyzeBtn">Analyze</button>
 
-  <!-- Main Content -->
-  <div class="max-w-4xl mx-auto px-6 py-12">
-    <!-- Upload Card -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 mb-12">
-      <!-- Dropzone -->
-      <div
-        id="dropzone"
-        class="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition"
-      >
-        <div class="text-slate-600 mb-4">
-          <svg class="w-12 h-12 mx-auto mb-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-          </svg>
-          <p class="text-lg font-medium">Drag and drop your recording here</p>
-          <p class="text-sm text-slate-500 mt-1">or</p>
-        </div>
-        <button
-          type="button"
-          class="inline-block px-6 py-2 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition"
-          onclick="document.getElementById('fileInput').click()"
-        >
-          Choose File
-        </button>
-        <input
-          id="fileInput"
-          type="file"
-          accept="audio/*"
-          class="hidden"
-        />
+    <div id="results" class="section" style="display:none;">
+      <h3>🈯 Detected Language:</h3>
+      <p id="lang"></p>
+
+      <div class="section">
+        <h3>📝 Transcription (Native)</h3>
+        <pre id="transNative" class="native"></pre>
       </div>
 
-      <!-- File Info -->
-      <div id="fileName" class="mt-6 text-sm text-slate-600 hidden">
-        <p class="font-medium text-slate-900" id="fileNameText"></p>
-        <p id="fileSizeText" class="text-slate-500 mt-1"></p>
+      <div class="section">
+        <h3>🇬🇧 Transcription (English)</h3>
+        <pre id="transEn"></pre>
       </div>
 
-      <!-- Progress Bar -->
-      <div id="progressBar" class="mt-6 hidden">
-        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-          <div class="bg-slate-900 h-full rounded-full transition-all duration-500" style="width: 0%;" id="progressFill"></div>
-        </div>
-        <p id="progressText" class="text-sm text-slate-600 mt-2 text-center">0%</p>
+      <div class="section">
+        <h3>🧾 Summary (Native)</h3>
+        <pre id="sumNative" class="native"></pre>
       </div>
 
-      <!-- Process Button -->
-      <div class="mt-8 flex justify-center">
-        <button
-          id="processBtn"
-          disabled
-          class="px-8 py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Process
-        </button>
-      </div>
-    </div>
-
-    <!-- Results Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- Transcription Card -->
-      <div id="sectionTranscript" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hidden">
-        <h2 class="text-lg font-bold text-slate-900 mb-4">Transcription</h2>
-        <details class="cursor-pointer">
-          <summary class="font-medium text-slate-700 hover:text-slate-900">View full transcript</summary>
-          <pre class="mt-4 bg-slate-50 p-4 rounded-lg text-sm text-slate-700 overflow-x-auto whitespace-pre-wrap break-words">John: Good morning everyone. Let's start with the Q3 roadmap review.
-
-Sarah: Thanks John. We've made solid progress on the API optimization project.
-
-John: Great to hear. What are the next steps?
-
-Sarah: We need to finalize the database migration and run performance tests.</pre>
-        </details>
+      <div class="section">
+        <h3>🧾 Summary (English)</h3>
+        <pre id="sumEn"></pre>
       </div>
 
-      <!-- Summary Card -->
-      <div id="sectionSummary" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hidden">
-        <h2 class="text-lg font-bold text-slate-900 mb-4">Summary</h2>
-        <p class="text-slate-700 leading-relaxed">
-          Team discussed Q3 roadmap progress. API optimization project is on track. Key next steps include database migration and performance testing. Timeline: 2 weeks for completion.
-        </p>
+      <div class="section">
+        <h3>🚨 Moderation</h3>
+        <div id="moderation"></div>
       </div>
 
-      <!-- Action Rendering Card -->
-      <div id="sectionActions" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hidden">
-        <h2 class="text-lg font-bold text-slate-900 mb-4">Action Items</h2>
-        <ul class="space-y-3">
-          <li class="flex gap-3">
-            <span class="text-slate-400">•</span>
-            <span class="text-slate-700">Finalize database migration (Sarah) - Due: 2 weeks</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-slate-400">•</span>
-            <span class="text-slate-700">Run performance tests (Team) - Due: 2 weeks</span>
-          </li>
-          <li class="flex gap-3">
-            <span class="text-slate-400">•</span>
-            <span class="text-slate-700">Schedule follow-up meeting (John) - Due: 1 week</span>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Moderation Card -->
-      <div id="sectionModeration" class="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-6 hidden">
-        <h2 class="text-lg font-bold text-amber-900 mb-4">Moderation Flags</h2>
-        <div class="space-y-2">
-          <p class="text-sm text-amber-800">✓ No sensitive content detected</p>
-          <p class="text-sm text-amber-800">✓ Professional tone maintained</p>
-          <p class="text-sm text-amber-800">✓ No policy violations</p>
-        </div>
+      <div class="section">
+        <h3>✅ Actions & Decisions</h3>
+        <pre id="actions"></pre>
       </div>
     </div>
   </div>
 
   <script>
-    // ✅ define API base INSIDE a <script>
-    const API_BASE = "http://127.0.0.1:8000/api/v1";
-
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
-    const fileNameText = document.getElementById('fileNameText');
-    const fileSizeText = document.getElementById('fileSizeText');
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
-    const processBtn = document.getElementById('processBtn');
-
-    const resultSections = {
-      transcript: document.getElementById('sectionTranscript'),
-      summary: document.getElementById('sectionSummary'),
-      actions: document.getElementById('sectionActions'),
-      moderation: document.getElementById('sectionModeration'),
-    };
-
-    let selectedFile = null;
-
-    // Drag and drop
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('border-slate-400', 'bg-slate-50');
-    });
-
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.classList.remove('border-slate-400', 'bg-slate-50');
-    });
-
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('border-slate-400', 'bg-slate-50');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        handleFileSelect(files[0]);
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('audioFile');
+      if (!fileInput.files.length) {
+        alert('Please select an audio file first.');
+        return;
       }
-    });
 
-    // File input change
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
-      }
-    });
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
 
-    function handleFileSelect(file) {
-      selectedFile = file;
-      fileNameText.textContent = file.name;
-      fileSizeText.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-      fileName.classList.remove('hidden');
-      processBtn.disabled = false;
-    }
+      document.getElementById('analyzeBtn').innerText = 'Analyzing...';
+      document.getElementById('analyzeBtn').disabled = true;
 
-    // Process button: upload -> transcribe -> analyze
-    processBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
-
-      try {
-        // UI: reset & show progress
-        progressBar.classList.remove('hidden');
-        processBtn.disabled = true;
-        progressFill.style.width = '0%';
-        progressText.textContent = '0%';
-
-        // 1) Upload audio
-        progressText.textContent = 'Uploading audio…';
-        await tickProgressTo(25);
-
-        const form = new FormData();
-        form.append('file', selectedFile, selectedFile.name);
-
-        const uploadRes = await fetch(`${API_BASE}/meetings/upload`, {
-          method: 'POST',
-          body: form
-        });
-        if (!uploadRes.ok) throw new Error('Upload failed');
-        await tickProgressTo(40);
-
-        // 2) Transcribe (Whisper placeholder)
-        progressText.textContent = 'Transcribing…';
-        const transcribeRes = await fetch(`${API_BASE}/meetings/transcribe`, {
-          method: 'POST'
-        });
-        if (!transcribeRes.ok) throw new Error('Transcription failed');
-        const transcribeJson = await transcribeRes.json();
-        const transcriptText = transcribeJson.text || '(no text)';
-        await tickProgressTo(70);
-
-        // 3) Analyze (summary, actions, moderation)
-        progressText.textContent = 'Analyzing…';
-        const processRes = await fetch(`${API_BASE}/meetings/process`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: transcriptText })
-        });
-        if (!processRes.ok) throw new Error('Analysis failed');
-        const processJson = await processRes.json();
-        await tickProgressTo(100);
-
-        // 4) Populate UI
-        const transcriptPre = document.querySelector('#sectionTranscript pre');
-        transcriptPre.textContent = transcriptText;
-
-        document.querySelector('#sectionSummary p').textContent =
-          processJson.summary || '(summary placeholder)';
-
-        const actionsUl = document.querySelector('#sectionActions ul');
-actionsUl.innerHTML = '';
-(processJson.actions || []).forEach(item => {
-  const li = document.createElement('li');
-  li.className = 'flex gap-3';
-  let label = '';
-  if (typeof item === 'string') {
-    label = item;
-  } else {
-    const who = (item.assignee || '').trim();
-    const what = (item.text || '').trim();
-    label = who ? `${who}: ${what}` : what;
-  }
-  li.innerHTML = `<span class="text-slate-400">•</span><span class="text-slate-700">${label}</span>`;
-  actionsUl.appendChild(li);
-});
-
-
-        const modBox = document.getElementById('sectionModeration');
-        const moderation = processJson.moderation || {};
-        modBox.innerHTML = `
-          <h2 class="text-lg font-bold text-amber-900 mb-4">Moderation Flags</h2>
-          <div class="space-y-2">
-            <p class="text-sm text-amber-800">Interruptions: ${moderation.interruptions ?? 0}</p>
-            ${(moderation.notes || []).map(n => `<p class="text-sm text-amber-800">• ${n}</p>`).join('') || '<p class="text-sm text-amber-800">No flags</p>'}
-          </div>
-        `;
-
-        Object.values(resultSections).forEach(section => section.classList.remove('hidden'));
-
-      } catch (err) {
-        console.error(err);
-        progressText.textContent = 'Error. Check console for details.';
-      } finally {
-        processBtn.disabled = false;
-      }
-    });
-
-    // helper to animate the progress bar to a target %
-    async function tickProgressTo(target) {
-      return new Promise(resolve => {
-        const cur = parseFloat(progressFill.style.width || '0');
-        let p = cur;
-        const id = setInterval(() => {
-          p += Math.max(1, (target - p) / 5);
-          if (p >= target) { p = target; clearInterval(id); }
-          progressFill.style.width = p + '%';
-          progressText.textContent = `${Math.floor(p)}%`;
-          if (p === target) resolve();
-        }, 60);
+      const res = await fetch('http://127.0.0.1:8000/api/v1/analyze', {
+        method: 'POST',
+        body: formData
       });
-    }
+
+      const json = await res.json();
+      console.log(json);
+
+      const data = json.data;
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('lang').textContent = `${data.language_name} (${data.language_code})`;
+
+      document.getElementById('transNative').textContent = data.transcript_native || '-';
+      document.getElementById('transEn').textContent = data.transcript_en || '-';
+      document.getElementById('sumNative').textContent = data.summary_native || '-';
+      document.getElementById('sumEn').textContent = data.summary_en || '-';
+
+      // Moderation tags
+      const mod = data.moderation;
+      const modDiv = document.getElementById('moderation');
+      modDiv.innerHTML = '';
+      if (mod.is_flagged) {
+        modDiv.innerHTML += `<span class="tag flagged">⚠️ Flagged</span>`;
+      } else {
+        modDiv.innerHTML += `<span class="tag safe">✅ Safe</span>`;
+      }
+      if (mod.notes) modDiv.innerHTML += `<p>${mod.notes}</p>`;
+
+      // Actions
+      document.getElementById('actions').textContent = JSON.stringify(data.actions, null, 2);
+
+      document.getElementById('analyzeBtn').innerText = 'Analyze';
+      document.getElementById('analyzeBtn').disabled = false;
+    });
   </script>
 </body>
 </html>
