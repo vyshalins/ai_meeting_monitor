@@ -3,7 +3,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from uuid import uuid4
 from app.config import get_settings
 from app.services.groq_service import GroqClient, transcribe_audio
-import tempfile, shutil
+import tempfile, shutil, os
+from app.services.groq_service import translate_text
+from app.services.groq_service import summarize_text_en, summarize_text_native
 
 router = APIRouter()
 
@@ -72,4 +74,68 @@ async def transcribe_audio_endpoint(file: UploadFile = File(...)):
     return {
         "status": "success",
         "data": result
+    }
+@router.post("/translate")
+async def translate_endpoint(file: UploadFile = File(...)):
+    """
+    Uploads an audio file → Transcribes (auto language detect + native script)
+    → Translates to English → Returns both versions.
+    """
+    temp_path = None  # ✅ ensures variable exists even if try fails
+    try:
+        # 1️⃣ Save uploaded audio temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+            shutil.copyfileobj(file.file, temp_audio)
+            temp_path = temp_audio.name
+
+        # 2️⃣ Transcribe the audio
+        result = transcribe_audio(temp_path)
+        if "error" in result:
+            return {"status": "error", "message": result["error"]}
+
+        native = result["transcript_native"]
+        lang = result["language_code"]
+        lang_name = result["language_name"]
+
+        # 3️⃣ Translate to English
+        english = translate_text(native, lang)
+
+        # 4️⃣ Return combined result
+        return {
+            "status": "success",
+            "data": {
+                "language_code": lang,
+                "language_name": lang_name,
+                "transcript_native": native,
+                "transcript_english": english
+            }
+        }
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+    finally:
+        # 5️⃣ Clean up temp file
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+@router.post("/summarize")
+async def summarize_endpoint(payload: dict):
+    text = payload.get("text", "")
+    src_lang = payload.get("src_lang", "unknown")
+
+    # Step 1: Summarize in English
+    summary_en = summarize_text_en(text)
+    if "error" in summary_en:
+        return summary_en
+
+    # Step 2: Translate summary to native language
+    summary_native = summarize_text_native(summary_en["summary_en"], src_lang)
+
+    return {
+        "status": "success",
+        "data": {
+            "summary_en": summary_en["summary_en"],
+            "summary_native": summary_native.get("summary_native", "")
+        }
     }

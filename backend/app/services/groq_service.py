@@ -62,6 +62,91 @@ def transcribe_audio(file_path: str) -> Dict[str, Any]:
         print(f"Transcription failed: {e}")
         return {"error": str(e)}
 
+def translate_text(native_text: str, source_lang: str = "auto") -> str:
+    """
+    Translates text from its detected language into English using Groq's LLM.
+    Returns the translated English text as a string.
+    """
+    try:
+        # Explicit instruction for translation
+        prompt = (
+            f"You are a professional translator. The user will give you text in {source_lang}. "
+            "Translate it into natural, fluent English. "
+            "If the text is already in English, just return it as-is. "
+            "Do not explain, comment, or repeat the source. "
+            "Output only the English translation text.\n\n"
+            f"Text:\n{native_text}"
+        )
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a multilingual translation assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=600,
+        )
+
+        translated_text = response.choices[0].message.content.strip()
+
+        # Optional: clean up potential "Translation:" prefixes
+        if translated_text.lower().startswith("translation:"):
+            translated_text = translated_text.split(":", 1)[1].strip()
+
+        return translated_text
+
+    except Exception as e:
+        print(f"Translation failed: {e}")
+        return ""
+
+def summarize_text_en(text: str) -> dict:
+    """
+    Summarizes the given English text clearly and concisely.
+    Returns a short meeting-style summary in English.
+    """
+    try:
+        if not text.strip():
+            return {"error": "Empty text for summarization."}
+
+        prompt = (
+            "You are a precise meeting summarizer. "
+            "Summarize the following transcript into concise, clear English points. "
+            "Focus on key discussion topics, decisions, and outcomes.\n\n"
+            f"Transcript:\n{text}\n\n"
+            "Summary:"
+        )
+
+        summary = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",  # ✅ updated model
+            messages=[
+                {"role": "system", "content": "You write clear, structured summaries."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=600
+        )
+
+        return {"summary_en": summary.choices[0].message.content.strip()}
+
+    except Exception as e:
+        print(f"Summarization failed: {e}")
+        return {"error": str(e)}
+
+def summarize_text_native(summary_en: str, target_lang: str) -> Dict[str, Any]:
+    """
+    Translates the English summary into the detected native language.
+    Returns the summary in the original spoken language.
+    """
+    try:
+        translated_text = translate_text(summary_en, target_lang)
+        # translate_text() already returns a string, not a dict
+        return {"summary_native": translated_text}
+    except Exception as e:
+        print(f"Native summary translation failed: {e}")
+        return {"error": str(e)}
+
+
 def _strip_code_fences(text: str) -> str:
     m = re.search(r"```(?:json)?\s*(.+?)\s*```", text, re.S)
     return m.group(1).strip() if m else text.strip()
